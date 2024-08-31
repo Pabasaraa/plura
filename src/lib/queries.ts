@@ -3,7 +3,8 @@
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { db } from "./db";
 import { redirect } from "next/navigation";
-import { Agency, Plan, User } from "@prisma/client";
+import { Agency, Plan, SubAccount, User } from "@prisma/client";
+import { v4 } from "uuid";
 
 export const getAuthUserDetails = async () => {
   const user = await currentUser();
@@ -129,6 +130,13 @@ export const createTeamUser = async (agencyId: string, user: User) => {
   return response;
 };
 
+/**
+ * check whether current user has an invitation in the db,
+ * if true: create a new user for the current user in the db
+ * otherwise: check if a user already exists in the db under the current user's email,
+ *
+ * @returns agency id if exists else null
+ */
 export const verifyAndAcceptInvitation = async () => {
   const user = await currentUser();
   if (!user) return redirect("/sign-in");
@@ -181,7 +189,7 @@ export const verifyAndAcceptInvitation = async () => {
   }
 };
 
-export const updateAGencyDetails = async (
+export const updateAgencyDetails = async (
   agencyId: string,
   agencyDetails: Partial<Agency>
 ) => {
@@ -203,6 +211,14 @@ export const deleteAgency = async (agencyId: string) => {
   return response;
 };
 
+/**
+ * Check whether a user already exists under the current logged in users email,
+ * if true: update the user's details
+ * otherwise: create a new user with the currently logged in user's data retrieved from clerk
+ *
+ * @param newUser user data of type User but all the fields are optional (<partial>)
+ * @returns updated | newly created user data
+ */
 export const initUser = async (newUser: Partial<User>) => {
   const user = await currentUser();
 
@@ -231,6 +247,15 @@ export const initUser = async (newUser: Partial<User>) => {
   return userData;
 };
 
+/**
+ * First check if an agency exists under the agency.id,
+ * if so: update the details with the newly passed data
+ * otherwise: create a new agency entry in the db
+ *
+ * @param agency Agency details
+ * @param price Selected price plan
+ * @returns Created or updated agency details from db
+ */
 export const upsertAgency = async (agency: Agency, price?: Plan) => {
   if (!agency.companyEmail) return null;
 
@@ -285,4 +310,104 @@ export const upsertAgency = async (agency: Agency, price?: Plan) => {
   } catch (error) {
     console.log(error);
   }
+};
+
+export const getNotificationAndUser = async (agencyId: string) => {
+  try {
+    const response = await db.notification.findMany({
+      where: { agencyId },
+      include: { User: true },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return response;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const upsertSubAccount = async (subAccount: SubAccount) => {
+  if (!subAccount.companyEmail) return null;
+
+  const agencyOwner = await db.user.findFirst({
+    where: {
+      Agency: {
+        id: subAccount.agencyId,
+      },
+      role: "AGENCY_OWNER",
+    },
+  });
+
+  if (!agencyOwner) return console.log("Error could not create subaccount");
+
+  const permissionId = v4();
+
+  const response = await db.subAccount.upsert({
+    where: { id: subAccount.id },
+    update: subAccount,
+    create: {
+      ...subAccount,
+      Permissions: {
+        create: {
+          access: true,
+          email: agencyOwner.email,
+          id: permissionId,
+        },
+        connect: {
+          subAccountId: subAccount.id,
+          id: permissionId,
+        },
+      },
+      Pipeline: {
+        create: { name: "Lead Cycle" },
+      },
+      SidebarOption: {
+        create: [
+          {
+            name: "Launchpad",
+            icon: "clipboardIcon",
+            link: `/subaccount/${subAccount.id}/launchpad`,
+          },
+          {
+            name: "Settings",
+            icon: "settings",
+            link: `/subaccount/${subAccount.id}/settings`,
+          },
+          {
+            name: "Funnels",
+            icon: "pipelines",
+            link: `/subaccount/${subAccount.id}/funnels`,
+          },
+          {
+            name: "Media",
+            icon: "database",
+            link: `/subaccount/${subAccount.id}/media`,
+          },
+          {
+            name: "Automations",
+            icon: "chip",
+            link: `/subaccount/${subAccount.id}/automations`,
+          },
+          {
+            name: "Pipelines",
+            icon: "flag",
+            link: `/subaccount/${subAccount.id}/pipelines`,
+          },
+          {
+            name: "Contacts",
+            icon: "person",
+            link: `/subaccount/${subAccount.id}/contacts`,
+          },
+          {
+            name: "Dashboard",
+            icon: "category",
+            link: `/subaccount/${subAccount.id}`,
+          },
+        ],
+      },
+    },
+  });
+  return response;
 };

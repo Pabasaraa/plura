@@ -43,7 +43,7 @@ import {
   deleteAgency,
   initUser,
   saveActivityLogsNotification,
-  updateAGencyDetails,
+  updateAgencyDetails,
   upsertAgency,
 } from "@/lib/queries";
 import { Button } from "../ui/button";
@@ -365,7 +365,7 @@ const AgencyDetails = ({ data }: Props) => {
                     defaultValue={data?.goal}
                     onValueChange={async (value: number) => {
                       if (!data?.id) return;
-                      await updateAGencyDetails(data.id, { goal: value });
+                      await updateAgencyDetails(data.id, { goal: value });
                       await saveActivityLogsNotification({
                         agencyId: data.id,
                         description: `Updated the agency goal to | ${value} Sub Account`,
