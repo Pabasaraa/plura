@@ -76,7 +76,7 @@ const MenuOptions = ({
         showX={!defaultOpen}
         side={"left"}
         className={clsx(
-          "bg-background/80 backgrop-blur-xl fixed top-0 border-r-[1px] p-6",
+          "bg-background/80 backdrop-blur-xl fixed top-0 border-r-[1px] p-6",
           {
             "hidden md:inline-block z-0 w-[300px]": defaultOpen,
             "inline-block md:hidden z-[100] w-full": !defaultOpen,
@@ -267,18 +267,20 @@ const MenuOptions = ({
                     }
 
                     return (
-                      <CommandItem
-                        key={sidebarOption.id}
-                        className="md:w-[320px] w-full"
-                      >
-                        <Link
-                          href={sidebarOption.link}
-                          className="flex items-center gap-2 hover:bg-transparent rounded-md transition-all md:w-full w-[320px]"
+                      <>
+                        <CommandItem
+                          key={sidebarOption.id}
+                          className="md:w-[320px] w-full"
                         >
-                          {val}
-                          <span>{sidebarOption.name}</span>
-                        </Link>
-                      </CommandItem>
+                          <Link
+                            href={sidebarOption.link}
+                            className="flex items-center gap-2 hover:bg-transparent rounded-md transition-all md:w-full w-[320px]"
+                          >
+                            {val}
+                            <span>{sidebarOption.name}</span>
+                          </Link>
+                        </CommandItem>
+                      </>
                     );
                   })}
                 </CommandGroup>
